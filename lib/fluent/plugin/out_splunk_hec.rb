@@ -244,7 +244,7 @@ module Fluent::Plugin
 	payload[:source] = @source.(tag, record) if @source
 	payload[:sourcetype] = @sourcetype.(tag, record) if @sourcetype
 
-	# delete nil fields otherwise will get formet error from HEC
+	# delete nil fields otherwise will get format error from HEC
 	%i[host index source sourcetype].each { |f| payload.delete f if payload[f].nil? }
 
 	if @extra_fields
@@ -331,7 +331,7 @@ module Fluent::Plugin
       response = @hec_conn.request @hec_api, post
       log.debug { "[Response] POST #{@hec_api}: #{response.inspect}" }
 
-      # raise Exception to utilize Fluentd output plugin retry machanism
+      # raise Exception to utilize Fluentd output plugin retry mechanism
       raise "Server error (#{response.code}) for POST #{@hec_api}, response: #{response.body}" if response.code.start_with?('5')
 
       # For both success response (2xx) and client errors (4xx), we will consume the chunk.
