@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require "fluent/plugin/output"
-require "fluent/plugin/formatter"
+require 'fluent/plugin/output'
+require 'fluent/plugin/formatter'
 
 require 'openssl'
 require 'multi_json'
@@ -13,16 +13,16 @@ module Fluent::Plugin
 
     helpers :formatter
 
-    autoload :VERSION, "fluent/plugin/out_splunk_hec/version"
-    autoload :MatchFormatter, "fluent/plugin/out_splunk_hec/match_formatter"
+    autoload :VERSION, 'fluent/plugin/out_splunk_hec/version'
+    autoload :MatchFormatter, 'fluent/plugin/out_splunk_hec/match_formatter'
 
     KEY_FIELDS = %w[index host source sourcetype metric_name metric_value].freeze
-    TAG_PLACEHOLDER = '${tag}'.freeze
+    TAG_PLACEHOLDER = '${tag}'
 
-    MISSING_FIELD = Hash.new { |h, k|
+    MISSING_FIELD = Hash.new do |_h, k|
       $log.warn "expected field #{k} but it's missing" if defined?($log)
       MISSING_FIELD
-    }.freeze
+    end.freeze
 
     desc 'Protocol to use to call HEC API.'
     config_param :protocol, :enum, list: %i[http https], default: :https
@@ -63,7 +63,7 @@ module Fluent::Plugin
     desc 'Field name to contain Splunk index name. This is exclusive with `index`.'
     config_param :index_key, :string, default: nil
 
-    desc "The host field for events, by default it uses the hostname of the machine that runnning fluentd. This is exclusive with `host_key`."
+    desc 'The host field for events, by default it uses the hostname of the machine that runnning fluentd. This is exclusive with `host_key`.'
     config_param :host, :string, default: nil
 
     desc 'Field name to contain host. This is exclusive with `host`.'
@@ -84,10 +84,10 @@ module Fluent::Plugin
     desc 'When `data_type` is set to "metric", by default it will treat every key-value pair in the income event as a metric name-metric value pair. Set `metrics_from_event` to `false` to disable this behavior and use `metric_name_key` and `metric_value_key` to define metrics.'
     config_param :metrics_from_event, :bool, default: true
 
-    desc "Field name to contain metric name. This is exclusive with `metrics_from_event`, when this is set, `metrics_from_event` will be set to `false`."
+    desc 'Field name to contain metric name. This is exclusive with `metrics_from_event`, when this is set, `metrics_from_event` will be set to `false`.'
     config_param :metric_name_key, :string, default: nil
 
-    desc "Field name to contain metric value, this is required when `metric_name_key` is set."
+    desc 'Field name to contain metric value, this is required when `metric_name_key` is set.'
     config_param :metric_value_key, :string, default: nil
 
     desc 'When set to true, all fields defined in `index_key`, `host_key`, `source_key`, `sourcetype_key`, `metric_name_key`, `metric_value_key` will not be removed from the original event.'
@@ -97,7 +97,7 @@ module Fluent::Plugin
     config_section :fields, init: false, multi: false, required: false do
       # this is blank on purpose
     end
-    
+
     config_section :format do
       config_set_default :usage, '**'
       config_set_default :@type, 'json'
@@ -105,18 +105,18 @@ module Fluent::Plugin
     end
 
     desc <<~DESC
-    Whether to allow non-UTF-8 characters in user logs. If set to true, any
-    non-UTF-8 character would be replaced by the string specified by
-    `non_utf8_replacement_string`. If set to false, any non-UTF-8 character
-    would trigger the plugin to error out.
+      Whether to allow non-UTF-8 characters in user logs. If set to true, any
+      non-UTF-8 character would be replaced by the string specified by
+      `non_utf8_replacement_string`. If set to false, any non-UTF-8 character
+      would trigger the plugin to error out.
     DESC
-    config_param :coerce_to_utf8, :bool, :default => true
+    config_param :coerce_to_utf8, :bool, default: true
 
     desc <<~DESC
-    If `coerce_to_utf8` is set to true, any non-UTF-8 character would be
-    replaced by the string specified here.
+      If `coerce_to_utf8` is set to true, any non-UTF-8 character would be
+      replaced by the string specified here.
     DESC
-    config_param :non_utf8_replacement_string, :string, :default => ' '
+    config_param :non_utf8_replacement_string, :string, default: ' '
 
     def initialize
       super
@@ -135,9 +135,9 @@ module Fluent::Plugin
       pick_custom_format_method
 
       # @formatter_configs is from formatter helper
-      @formatters = @formatter_configs.map { |section|
-	MatchFormatter.new section.usage, formatter_create(usage: section.usage)
-      }
+      @formatters = @formatter_configs.map do |section|
+        MatchFormatter.new section.usage, formatter_create(usage: section.usage)
+      end
     end
 
     def start
@@ -162,11 +162,11 @@ module Fluent::Plugin
     private
 
     def check_conflict
-      KEY_FIELDS.each { |f|
-	kf = "#{f}_key"
-	raise Fluent::ConfigError, "Can not set #{f} and #{kf} at the same time." \
-	  if %W[@#{f} @#{kf}].all? &method(:instance_variable_get)
-      }
+      KEY_FIELDS.each do |f|
+        kf = "#{f}_key"
+        raise Fluent::ConfigError, "Can not set #{f} and #{kf} at the same time." \
+          if %W[@#{f} @#{kf}].all? &method(:instance_variable_get)
+      end
     end
 
     def check_metric_configs
@@ -176,34 +176,34 @@ module Fluent::Plugin
 
       return if @metrics_from_event
 
-      raise Fluent::ConfigError, "`metric_name_key` is required when `metrics_from_event` is `false`." unless @metric_name_key
+      raise Fluent::ConfigError, '`metric_name_key` is required when `metrics_from_event` is `false`.' unless @metric_name_key
 
-      raise Fluent::ConfigError, "`metric_value_key` is required when `metric_name_key` is set." unless @metric_value_key
+      raise Fluent::ConfigError, '`metric_value_key` is required when `metric_name_key` is set.' unless @metric_value_key
     end
 
     def prepare_key_fields
-      KEY_FIELDS.each { |f|
-	v = instance_variable_get "@#{f}_key"
-	if v
-	  attrs = v.split('.').freeze
-	  if @keep_keys
-	    instance_variable_set "@#{f}", ->(_, record) { attrs.inject(record) { |o, k| o[k] } }
-	  else
-	    instance_variable_set "@#{f}", ->(_, record) {
-	      attrs[0...-1].inject(record) { |o, k| o[k] }.delete(attrs[-1])
-	    }
-	  end
-	else
-	  v = instance_variable_get "@#{f}"
-	  next unless v
+      KEY_FIELDS.each do |f|
+        v = instance_variable_get "@#{f}_key"
+        if v
+          attrs = v.split('.').freeze
+          if @keep_keys
+            instance_variable_set "@#{f}", ->(_, record) { attrs.inject(record) { |o, k| o[k] } }
+          else
+            instance_variable_set "@#{f}", lambda { |_, record|
+              attrs[0...-1].inject(record) { |o, k| o[k] }.delete(attrs[-1])
+            }
+          end
+        else
+          v = instance_variable_get "@#{f}"
+          next unless v
 
-	  if v == TAG_PLACEHOLDER
-	    instance_variable_set "@#{f}", ->(tag, _) { tag }
-	  else
-	    instance_variable_set "@#{f}", ->(_, _) { v }
-	  end
-	end
-      }
+          if v == TAG_PLACEHOLDER
+            instance_variable_set "@#{f}", ->(tag, _) { tag }
+          else
+            instance_variable_set "@#{f}", ->(_, _) { v }
+          end
+        end
+      end
     end
 
     # <fields> directive, which defines:
@@ -213,97 +213,97 @@ module Fluent::Plugin
       # This loop looks dump, but it is used to suppress the unused parameter configuration warning
       # Learned from `filter_record_transformer`.
       conf.elements.select { |element| element.name == 'fields' }.each do |element|
-        element.each_pair { |k, v| element.has_key?(k) }
+        element.each_pair { |k, _v| element.key?(k) }
       end
 
       return unless @fields
 
-      @extra_fields = @fields.corresponding_config_element.map { |k, v|
-	[k, v.empty? ? k : v]
-      }.to_h
+      @extra_fields = @fields.corresponding_config_element.map do |k, v|
+        [k, v.empty? ? k : v]
+      end.to_h
     end
 
     def pick_custom_format_method
       if @data_type == :event
-	define_singleton_method :format, method(:format_event)
+        define_singleton_method :format, method(:format_event)
       else
-	define_singleton_method :format, method(:format_metric)
+        define_singleton_method :format, method(:format_metric)
       end
     end
 
     def format_event(tag, time, record)
       MultiJson.dump({
-	host: @host ? @host.(tag, record) : @default_host,
-	# From the API reference
-	# http://docs.splunk.com/Documentation/Splunk/latest/RESTREF/RESTinput#services.2Fcollector
-	# `time` should be a string or unsigned integer.
-	# That's why we use `to_s` here.
-	time: time.to_f.to_s
-      }.tap { |payload|
-	payload[:index] = @index.(tag, record) if @index
-	payload[:source] = @source.(tag, record) if @source
-	payload[:sourcetype] = @sourcetype.(tag, record) if @sourcetype
+        host: @host ? @host.call(tag, record) : @default_host,
+        # From the API reference
+        # http://docs.splunk.com/Documentation/Splunk/latest/RESTREF/RESTinput#services.2Fcollector
+        # `time` should be a string or unsigned integer.
+        # That's why we use `to_s` here.
+        time: time.to_f.to_s
+      }.tap do |payload|
+        payload[:index] = @index.call(tag, record) if @index
+        payload[:source] = @source.call(tag, record) if @source
+        payload[:sourcetype] = @sourcetype.call(tag, record) if @sourcetype
 
-	# delete nil fields otherwise will get format error from HEC
-	%i[host index source sourcetype].each { |f| payload.delete f if payload[f].nil? }
+        # delete nil fields otherwise will get format error from HEC
+        %i[host index source sourcetype].each { |f| payload.delete f if payload[f].nil? }
 
-	if @extra_fields
-	  payload[:fields] = @extra_fields.map { |name, field| [name, record[field]] }.to_h
-	  payload[:fields].compact!
-	  # if a field is already in indexed fields, then remove it from the original event
-	  @extra_fields.values.each { |field| record.delete field }
-	end
-	if formatter = @formatters.find { |f| f.match? tag }
-	  record = formatter.format(tag, time, record)
-	end
-	payload[:event] = convert_to_utf8 record
-      })
+        if @extra_fields
+          payload[:fields] = @extra_fields.map { |name, field| [name, record[field]] }.to_h
+          payload[:fields].compact!
+          # if a field is already in indexed fields, then remove it from the original event
+          @extra_fields.values.each { |field| record.delete field }
+        end
+        if formatter = @formatters.find { |f| f.match? tag }
+          record = formatter.format(tag, time, record)
+        end
+        payload[:event] = convert_to_utf8 record
+      end)
     end
 
     def format_metric(tag, time, record)
       payload = {
-	host: @host ? @host.(tag, record) : @default_host,
-	# From the API reference
-	# http://docs.splunk.com/Documentation/Splunk/latest/RESTREF/RESTinput#services.2Fcollector
-	# `time` should be a string or unsigned integer.
-	# That's why we use `to_s` here.
-	time: time.to_f.to_s,
-	event: 'metric'
+        host: @host ? @host.call(tag, record) : @default_host,
+        # From the API reference
+        # http://docs.splunk.com/Documentation/Splunk/latest/RESTREF/RESTinput#services.2Fcollector
+        # `time` should be a string or unsigned integer.
+        # That's why we use `to_s` here.
+        time: time.to_f.to_s,
+        event: 'metric'
       }
-      payload[:index] = @index.(tag, record) if @index
-      payload[:source] = @source.(tag, record) if @source
-      payload[:sourcetype] = @sourcetype.(tag, record) if @sourcetype
+      payload[:index] = @index.call(tag, record) if @index
+      payload[:source] = @source.call(tag, record) if @source
+      payload[:sourcetype] = @sourcetype.call(tag, record) if @sourcetype
 
-      if not @metrics_from_event
-	fields = {
-	  metric_name: @metric_name.(tag, record),
-	  _value: @metric_value.(tag, record)
-	}
+      unless @metrics_from_event
+        fields = {
+          metric_name: @metric_name.call(tag, record),
+          _value: @metric_value.call(tag, record)
+        }
 
-	if @extra_fields
-	  fields.update @extra_fields.map { |name, field| [name, record[field]] }.to_h
-	else
-	  fields.update record
-	end
+        if @extra_fields
+          fields.update @extra_fields.map { |name, field| [name, record[field]] }.to_h
+        else
+          fields.update record
+        end
 
-	fields.compact!
+        fields.compact!
 
-	payload[:fields] = convert_to_utf8 fields
+        payload[:fields] = convert_to_utf8 fields
 
-	return MultiJson.dump(payload)
+        return MultiJson.dump(payload)
       end
 
       # when metrics_from_event is true, generate one metric event for each key-value in record
-      payloads = record.map { |key, value|
-	{fields: {metric_name: key, _value: value}}.merge! payload
-      }
+      payloads = record.map do |key, value|
+        { fields: { metric_name: key, _value: value } }.merge! payload
+      end
 
       payloads.map!(&MultiJson.method(:dump)).join
     end
 
     def construct_api
       @hec_api = URI("#{@protocol}://#{@hec_host}:#{@hec_port}/services/collector")
-    rescue
+    rescue StandardError
       raise Fluent::ConfigError, "hec_host (#{@hec_host}) and/or hec_port (#{@hec_port}) are invalid."
     end
 
@@ -336,9 +336,9 @@ module Fluent::Plugin
 
       # For both success response (2xx) and client errors (4xx), we will consume the chunk.
       # Because there probably a bug in the code if we get 4xx errors, retry won't do any good.
-      if not response.code.start_with?('2')
-	log.error "Failed POST to #{@hec_api}, response: #{response.body}"
-	log.debug { "Failed request body: #{post.body}" }
+      unless response.code.start_with?('2')
+        log.error "Failed POST to #{@hec_api}, response: #{response.body}"
+        log.debug { "Failed request body: #{post.body}" }
       end
     end
 
@@ -350,32 +350,35 @@ module Fluent::Plugin
     # https://github.com/GoogleCloudPlatform/fluent-plugin-google-cloud/blob/dbc28575/lib/fluent/plugin/out_google_cloud.rb#L1284
     def convert_to_utf8(input)
       if input.is_a?(Hash)
-	record = {}
-	input.each do |key, value|
-	  record[convert_to_utf8(key)] = convert_to_utf8(value)
-	end
+        record = {}
+        input.each do |key, value|
+          record[convert_to_utf8(key)] = convert_to_utf8(value)
+        end
 
-	return record
+        return record
       end
       return input.map { |value| convert_to_utf8(value) } if input.is_a?(Array)
       return input unless input.respond_to?(:encode)
 
       if @coerce_to_utf8
-	input.encode(
-	  'utf-8',
-	  invalid: :replace,
-	  undef: :replace,
-	  replace: @non_utf8_replacement_string)
+        input.encode(
+          'utf-8',
+          invalid: :replace,
+          undef: :replace,
+          replace: @non_utf8_replacement_string
+        )
       else
-	begin
-	  input.encode('utf-8')
-	rescue EncodingError
-	  log.error { 'Encountered encoding issues potentially due to non ' \
-		     'UTF-8 characters. To allow non-UTF-8 characters and ' \
-		     'replace them with spaces, please set "coerce_to_utf8" ' \
-		     'to true.' }
-	  raise
-	end
+        begin
+          input.encode('utf-8')
+        rescue EncodingError
+          log.error do
+            'Encountered encoding issues potentially due to non ' \
+              		     'UTF-8 characters. To allow non-UTF-8 characters and ' \
+              		     'replace them with spaces, please set "coerce_to_utf8" ' \
+              		     'to true.'
+          end
+          raise
+        end
       end
     end
   end
