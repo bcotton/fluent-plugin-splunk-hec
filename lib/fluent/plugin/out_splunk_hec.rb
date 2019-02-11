@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'fluent/output'
 require 'fluent/plugin/output'
 require 'fluent/plugin/formatter'
 
@@ -8,7 +9,7 @@ require 'multi_json'
 require 'net/http/persistent'
 
 module Fluent::Plugin
-  class SplunkHecOutput < Fluent::Plugin::Output
+  class SplunkHecOutput < Fluent::BufferedOutput
     Fluent::Plugin.register_output('splunk_hec', self)
 
     helpers :formatter
@@ -147,6 +148,7 @@ module Fluent::Plugin
     end
 
     def format(tag, time, record)
+      log.error "NOT MONKEY PATCHED"
       # this method will be replaced in `configure`
     end
 
@@ -159,7 +161,36 @@ module Fluent::Plugin
       true
     end
 
-    private
+  def prepare_event_payload(record, tag, time)
+    {
+        host: @host ? @host.call(tag, record) : @default_host,
+        # From the API reference
+        # http://docs.splunk.com/Documentation/Splunk/latest/RESTREF/RESTinput#services.2Fcollector
+        # `time` should be a string or unsigned integer.
+        # That's why we use `to_s` here.
+        time: time.to_f.to_s
+    }.tap do |payload|
+      payload[:index] = @index.call(tag, record) if @index
+      payload[:source] = @source.call(tag, record) if @source
+      payload[:sourcetype] = @sourcetype.call(tag, record) if @sourcetype
+
+      # delete nil fields otherwise will get format error from HEC
+      %i[host index source sourcetype].each {|f| payload.delete f if payload[f].nil?}
+
+      if @extra_fields
+        payload[:fields] = @extra_fields.map {|name, field| [name, record[field]]}.to_h
+        payload[:fields].compact!
+        # if a field is already in indexed fields, then remove it from the original event
+        @extra_fields.values.each {|field| record.delete field}
+      end
+      if formatter = @formatters.find {|f| f.match? tag}
+        record = formatter.format(tag, time, record)
+      end
+      payload[:event] = convert_to_utf8 record
+    end
+  end
+
+  private
 
     def check_conflict
       KEY_FIELDS.each do |f|
@@ -224,43 +255,24 @@ module Fluent::Plugin
     end
 
     def pick_custom_format_method
+      log.error 'pick_custom_format_method'
       if @data_type == :event
+        log.error "picking format_event"
+        log.error method(:format_event).inspect
         define_singleton_method :format, method(:format_event)
       else
+        log.error "picking format_metric"
         define_singleton_method :format, method(:format_metric)
       end
     end
 
     def format_event(tag, time, record)
-      MultiJson.dump({
-        host: @host ? @host.call(tag, record) : @default_host,
-        # From the API reference
-        # http://docs.splunk.com/Documentation/Splunk/latest/RESTREF/RESTinput#services.2Fcollector
-        # `time` should be a string or unsigned integer.
-        # That's why we use `to_s` here.
-        time: time.to_f.to_s
-      }.tap do |payload|
-        payload[:index] = @index.call(tag, record) if @index
-        payload[:source] = @source.call(tag, record) if @source
-        payload[:sourcetype] = @sourcetype.call(tag, record) if @sourcetype
-
-        # delete nil fields otherwise will get format error from HEC
-        %i[host index source sourcetype].each { |f| payload.delete f if payload[f].nil? }
-
-        if @extra_fields
-          payload[:fields] = @extra_fields.map { |name, field| [name, record[field]] }.to_h
-          payload[:fields].compact!
-          # if a field is already in indexed fields, then remove it from the original event
-          @extra_fields.values.each { |field| record.delete field }
-        end
-        if formatter = @formatters.find { |f| f.match? tag }
-          record = formatter.format(tag, time, record)
-        end
-        payload[:event] = convert_to_utf8 record
-      end)
+      log.error 'format_event in superclass'
+      MultiJson.dump(prepare_event_payload(record, tag, time))
     end
 
     def format_metric(tag, time, record)
+      log.debug "SONOFA"
       payload = {
         host: @host ? @host.call(tag, record) : @default_host,
         # From the API reference
@@ -329,14 +341,18 @@ module Fluent::Plugin
 
       log.trace { "POST #{@hec_api} body=#{post.body}" }
       response = @hec_conn.request @hec_api, post
+      process_response(response)
+    end
+
+    def process_response(response)
       log.debug { "[Response] POST #{@hec_api}: #{response.inspect}" }
 
       # raise Exception to utilize Fluentd output plugin retry mechanism
-      raise "Server error (#{response.code}) for POST #{@hec_api}, response: #{response.body}" if response.code.start_with?('5')
+      raise "Server error (#{response.code}) for POST #{@hec_api}, response: #{response.body}" if response.code.to_s.start_with?('5')
 
       # For both success response (2xx) and client errors (4xx), we will consume the chunk.
       # Because there probably a bug in the code if we get 4xx errors, retry won't do any good.
-      unless response.code.start_with?('2')
+      unless response.code.to_s.start_with?('2')
         log.error "Failed POST to #{@hec_api}, response: #{response.body}"
         log.debug { "Failed request body: #{post.body}" }
       end
