@@ -50,7 +50,8 @@ module Fluent::Plugin
       payload[:nanos] = time.nsec / 100_000
 
       if Time.now.to_i % 1000 == 0
-        log.debug "#{self.class}: event_payload: #{payload}"
+        log.debug "#{self.class}: prepare_event_payload: payload -> #{payload}"
+        log.debug "#{self.class}: prepare_event_payload: record ->  #{record}"
       end
 
       payload
@@ -66,7 +67,7 @@ module Fluent::Plugin
       end
     end
 
-    def process_response(response)
+    def process_response(response, body)
       super
       if response.code == 401
         @hec_conn = new_connection
@@ -88,10 +89,10 @@ module Fluent::Plugin
     end
 
     def write(chunk)
-      log.debug "#{self.class}: In write() with #{chunk.size_of_events} records and #{chunk.bytesize} bytes "
+      log.trace "#{self.class}: In write() with #{chunk.size_of_events} records and #{chunk.bytesize} bytes "
       body = chunk.read
       response = @hec_conn.post("https://#{@ingest_api_host}/#{@ingest_api_tenant}#{@ingest_api_events_endpoint}", body: "[#{body.chomp(',')}]")
-      process_response(response)
+      process_response(response, body)
     end
   end
 end

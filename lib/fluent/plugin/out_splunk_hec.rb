@@ -334,15 +334,15 @@ module Fluent::Plugin
     def send_to_hec(chunk)
       post = Net::HTTP::Post.new @hec_api.request_uri
       post.body = chunk.read
-      log.debug { "#{self.class}: Sending #{post.body.bytesize} bytes to Splunk HEC." }
+      log.trace { "#{self.class}: Sending #{post.body.bytesize} bytes to Splunk HEC." }
 
       log.trace { "POST #{@hec_api} body=#{post.body}" }
       response = @hec_conn.request @hec_api, post
-      process_response(response)
+      process_response(response, post.body)
     end
 
 protected
-    def process_response(response)
+    def process_response(response, request_body)
       log.trace { "[Response] POST #{@hec_api}: #{response.inspect}" }
 
       # raise Exception to utilize Fluentd output plugin retry mechanism
@@ -351,8 +351,8 @@ protected
       # For both success response (2xx) and client errors (4xx), we will consume the chunk.
       # Because there probably a bug in the code if we get 4xx errors, retry won't do any good.
       unless response.code.to_s.start_with?('2')
-        log.error "#{self.class}: Failed POST to #{@hec_api}, response: #{response.body}"
-        log.debug { "#{self.class}: Failed request body: #{post.body}" }
+        log.error "#{self.class}: Failed POST to #{@hec_api}, response: #{response.body}, request: #{request_body}"
+        log.error { "#{self.class}: Failed request body: #{post.body}" }
       end
     end
 
