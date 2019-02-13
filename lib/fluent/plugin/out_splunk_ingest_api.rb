@@ -31,6 +31,13 @@ module Fluent::Plugin
       true
     end
 
+    def construct_api
+      uri = "https://#{@ingest_api_host}/#{@ingest_api_tenant}#{@ingest_api_events_endpoint}"
+      @hec_api = URI(uri)
+    rescue StandardError
+      raise Fluent::ConfigError, "URI #{uri} is invalid"
+    end
+    
     def prepare_event_payload(tag, time, record)
       payload = super(tag, time, record)
 
@@ -70,7 +77,7 @@ module Fluent::Plugin
     end
 
     def write(chunk)
-      log.error "In write() with #{chunk.size_of_events} records and #{chunk.bytesize} bytes "
+      log.debug "#{self.class}: In write() with #{chunk.size_of_events} records and #{chunk.bytesize} bytes "
       body = chunk.read
       response = @hec_conn.post("https://#{@ingest_api_host}/#{@ingest_api_tenant}#{@ingest_api_events_endpoint}", body: "[#{body.chomp(',')}]")
       process_response(response)

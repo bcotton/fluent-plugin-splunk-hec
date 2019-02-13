@@ -152,7 +152,7 @@ module Fluent::Plugin
     end
 
     def write(chunk)
-      log.debug { "Received new chunk, size=#{chunk.read.bytesize}" }
+      log.debug { "#{self.class}: Received new chunk, size=#{chunk.read.bytesize}" }
       send_to_hec chunk
     end
 
@@ -257,7 +257,6 @@ module Fluent::Plugin
 
     def pick_custom_format_method
       if @data_type == :event
-        log.error method(:format_event).inspect
         define_singleton_method :format, method(:format_event)
       else
         define_singleton_method :format, method(:format_metric)
@@ -335,7 +334,7 @@ module Fluent::Plugin
     def send_to_hec(chunk)
       post = Net::HTTP::Post.new @hec_api.request_uri
       post.body = chunk.read
-      log.debug { "Sending #{post.body.bytesize} bytes to Splunk." }
+      log.debug { "Sending #{post.body.bytesize} bytes to Splunk HEC." }
 
       log.trace { "POST #{@hec_api} body=#{post.body}" }
       response = @hec_conn.request @hec_api, post
@@ -351,8 +350,8 @@ module Fluent::Plugin
       # For both success response (2xx) and client errors (4xx), we will consume the chunk.
       # Because there probably a bug in the code if we get 4xx errors, retry won't do any good.
       unless response.code.to_s.start_with?('2')
-        log.error "Failed POST to #{@hec_api}, response: #{response.body}"
-        log.debug { "Failed request body: #{post.body}" }
+        log.error "#{self.class}: Failed POST to #{@hec_api}, response: #{response.body}"
+        log.debug { "#{self.class}: Failed request body: #{post.body}" }
       end
     end
 
