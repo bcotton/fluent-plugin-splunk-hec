@@ -351,7 +351,7 @@ protected
       # For both success response (2xx) and client errors (4xx), we will consume the chunk.
       # Because there probably a bug in the code if we get 4xx errors, retry won't do any good.
       unless response.code.to_s.start_with?('2')
-        log.error "#{self.class}: Failed POST to #{@hec_api}, response: #{response.body}, request: #{request_body}"
+        log.error "#{self.class}: Failed POST to #{@hec_api}, response: #{response.body}"
         log.error { "#{self.class}: Failed request body: #{post.body}" }
       end
     end
