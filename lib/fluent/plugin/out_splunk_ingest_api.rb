@@ -48,7 +48,7 @@ module Fluent::Plugin
     def format_event(tag, time, record)
       event = prepare_event_payload(tag, time, record)
       # Unsure how to drop a record. So append the empty string
-      if event[:body] == ''
+      if event[:body].nil? || event[:body] == ''
         ''
       else
         MultiJson.dump(event) + ','

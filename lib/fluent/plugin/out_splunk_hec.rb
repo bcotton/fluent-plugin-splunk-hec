@@ -343,7 +343,7 @@ module Fluent::Plugin
     end
 
     def process_response(response)
-      log.debug { "[Response] POST #{@hec_api}: #{response.inspect}" }
+      log.trace { "[Response] POST #{@hec_api}: #{response.inspect}" }
 
       # raise Exception to utilize Fluentd output plugin retry mechanism
       raise "Server error (#{response.code}) for POST #{@hec_api}, response: #{response.body}" if response.code.to_s.start_with?('5')
