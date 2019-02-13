@@ -49,6 +49,10 @@ module Fluent::Plugin
       payload[:timestamp] = (time.to_f * 1000).to_i
       payload[:nanos] = time.nsec / 100_000
 
+      if Time.now.to_i % 10000 == 0
+        log.debug "#{self.class}: event_payload: #{payload}"
+      end
+
       payload
     end
 
@@ -59,6 +63,13 @@ module Fluent::Plugin
         ''
       else
         MultiJson.dump(event) + ','
+      end
+    end
+
+    def process_response(response)
+      super
+      if response.code == 401
+        @hec_conn = new_connection
       end
     end
 

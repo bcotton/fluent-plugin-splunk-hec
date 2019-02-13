@@ -334,13 +334,14 @@ module Fluent::Plugin
     def send_to_hec(chunk)
       post = Net::HTTP::Post.new @hec_api.request_uri
       post.body = chunk.read
-      log.debug { "Sending #{post.body.bytesize} bytes to Splunk HEC." }
+      log.debug { "#{self.class}: Sending #{post.body.bytesize} bytes to Splunk HEC." }
 
       log.trace { "POST #{@hec_api} body=#{post.body}" }
       response = @hec_conn.request @hec_api, post
       process_response(response)
     end
 
+protected
     def process_response(response)
       log.trace { "[Response] POST #{@hec_api}: #{response.inspect}" }
 
@@ -354,6 +355,8 @@ module Fluent::Plugin
         log.debug { "#{self.class}: Failed request body: #{post.body}" }
       end
     end
+
+  private
 
     # Encode as UTF-8. If 'coerce_to_utf8' is set to true in the config, any
     # non-UTF-8 character would be replaced by the string specified by
