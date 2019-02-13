@@ -49,7 +49,7 @@ module Fluent::Plugin
       payload[:timestamp] = (time.to_f * 1000).to_i
       payload[:nanos] = time.nsec / 100_000
 
-      if Time.now.to_i % 10000 == 0
+      if Time.now.to_i % 1000 == 0
         log.debug "#{self.class}: event_payload: #{payload}"
       end
 
