@@ -148,8 +148,7 @@ module Fluent::Plugin
     end
 
     def format(tag, time, record)
-      log.error "NOT MONKEY PATCHED"
-      # this method will be replaced in `configure`
+        # this method will be replaced in `configure`
     end
 
     def write(chunk)
@@ -161,7 +160,9 @@ module Fluent::Plugin
       true
     end
 
-  def prepare_event_payload(record, tag, time)
+  protected
+
+  def prepare_event_payload(tag, time, record)
     {
         host: @host ? @host.call(tag, record) : @default_host,
         # From the API reference
@@ -255,24 +256,21 @@ module Fluent::Plugin
     end
 
     def pick_custom_format_method
-      log.error 'pick_custom_format_method'
       if @data_type == :event
-        log.error "picking format_event"
         log.error method(:format_event).inspect
         define_singleton_method :format, method(:format_event)
       else
-        log.error "picking format_metric"
         define_singleton_method :format, method(:format_metric)
       end
     end
 
+  protected
     def format_event(tag, time, record)
-      log.error 'format_event in superclass'
-      MultiJson.dump(prepare_event_payload(record, tag, time))
+        MultiJson.dump(prepare_event_payload(tag, time, record))
     end
 
+  private
     def format_metric(tag, time, record)
-      log.debug "SONOFA"
       payload = {
         host: @host ? @host.call(tag, record) : @default_host,
         # From the API reference
