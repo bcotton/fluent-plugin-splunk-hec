@@ -152,7 +152,7 @@ module Fluent::Plugin
     end
 
     def write(chunk)
-      log.debug { "#{self.class}: Received new chunk, size=#{chunk.read.bytesize}" }
+      log.trace { "#{self.class}: Received new chunk, size=#{chunk.read.bytesize}" }
       send_to_hec chunk
     end
 
