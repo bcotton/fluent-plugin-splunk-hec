@@ -163,6 +163,7 @@ module Fluent::Plugin
   protected
 
   def prepare_event_payload(tag, time, record)
+    log.debug "#{self.class}: prepare_event_payload: virgin record ->  #{record}" if rand(100) == 0
     {
         host: @host ? @host.call(tag, record) : @default_host,
         # From the API reference

@@ -39,11 +39,6 @@ module Fluent::Plugin
     end
     
     def prepare_event_payload(tag, time, record)
-      r = rand(100)
-      if r == 0
-        log.debug "#{self.class}: prepare_event_payload: virgin record ->  #{record}"
-      end
-
       payload = super(tag, time, record)
       # index is no longer supported as part of ingest.
       payload.delete(:index)
@@ -53,18 +48,13 @@ module Fluent::Plugin
       payload[:timestamp] = (time.to_f * 1000).to_i
       payload[:nanos] = time.nsec / 100_000
 
-      if r == 0
-        log.debug "#{self.class}: prepare_event_payload: record ->  #{record}"        
-        log.debug "#{self.class}: prepare_event_payload: payload -> #{payload}"
-      end
-
       payload
     end
 
     def format_event(tag, time, record)
       event = prepare_event_payload(tag, time, record)
       # Unsure how to drop a record. So append the empty string
-      if event[:body].nil? || event[:body] == '' || event[:body] == '\n'
+      if event[:body].nil? && event[:body].strip.empty?
         ''
       else
         MultiJson.dump(event) + ','
