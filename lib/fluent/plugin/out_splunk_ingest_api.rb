@@ -49,7 +49,7 @@ module Fluent::Plugin
       payload[:timestamp] = (time.to_f * 1000).to_i
       payload[:nanos] = time.nsec / 100_000
 
-      if rand(1000) == 0
+      if rand(100) == 0
         log.debug "#{self.class}: prepare_event_payload: payload -> #{payload}"
         log.debug "#{self.class}: prepare_event_payload: record ->  #{record}"
       end
@@ -67,10 +67,14 @@ module Fluent::Plugin
       end
     end
 
-    def process_response(response, body)
+    def process_response(response, request_body)
       super
-      if response.code == 401
+      if response.code.to_s == '401'
         @hec_conn = new_connection
+      elsif response.code.to_s == '429'
+        raise "Throttle error from server. #{response.body}"
+      elsif response.body =~ /INVALID_DATA/
+        log.error "#{self.class}: POST Body #{request_body}"
       end
     end
 
