@@ -49,10 +49,10 @@ module Fluent::Plugin
       payload[:timestamp] = (time.to_f * 1000).to_i
       payload[:nanos] = time.nsec / 100_000
 
-      # if rand(1000) == 0
-      #   log.debug "#{self.class}: prepare_event_payload: payload -> #{payload}"
-      #   log.debug "#{self.class}: prepare_event_payload: record ->  #{record}"
-      # end
+      if rand(1000) == 0
+        log.debug "#{self.class}: prepare_event_payload: payload -> #{payload}"
+        log.debug "#{self.class}: prepare_event_payload: record ->  #{record}"
+      end
 
       payload
     end
