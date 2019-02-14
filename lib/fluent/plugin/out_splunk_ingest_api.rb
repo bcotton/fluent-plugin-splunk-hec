@@ -27,6 +27,9 @@ module Fluent::Plugin
     desc 'Ingest API Events Endpoint'
     config_param :ingest_api_events_endpoint, :string, default: '/ingest/v1beta2/events'
 
+    desc 'Debug the HTTP transport'
+    config_param :debug_http, :boolean, default: false
+
     def prefer_buffer_processing
       true
     end
@@ -47,8 +50,6 @@ module Fluent::Plugin
       payload.delete(:time)
       payload[:timestamp] = (time.to_f * 1000).to_i
       payload[:nanos] = time.nsec / 100_000
-
-      log.debug "#{self.class}: prepare_event_payload: payload ->  #{payload}" if rand(100) == 0
 
       payload
     end
@@ -75,12 +76,12 @@ module Fluent::Plugin
     end
 
     def new_connection
-      #      Rack::OAuth2.debugging = true
+      Rack::OAuth2.debugging = true if @debug_http
       client = OpenIDConnect::Client.new(
         token_endpoint: @token_endpoint,
         identifier: @service_client_identifier,
         secret: @service_client_secret_key,
-        redirect_uri: 'http://localhost:8080/',
+        redirect_uri: 'http://localhost:8080/', # Not used
         host: @ingest_api_host,
         scheme: 'https'
       )
@@ -90,8 +91,9 @@ module Fluent::Plugin
 
     def write(chunk)
       log.trace "#{self.class}: In write() with #{chunk.size_of_events} records and #{chunk.bytesize} bytes "
-      body = chunk.read
-      response = @hec_conn.post("https://#{@ingest_api_host}/#{@ingest_api_tenant}#{@ingest_api_events_endpoint}", body: "[#{body.chomp(',')}]")
+      # ingest API is an array of json objects
+      body = "[#{chunk.read.chomp(',')}]"
+      response = @hec_conn.post("https://#{@ingest_api_host}/#{@ingest_api_tenant}#{@ingest_api_events_endpoint}", body: body)
       process_response(response, body)
     end
   end

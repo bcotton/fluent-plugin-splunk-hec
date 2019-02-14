@@ -180,7 +180,6 @@ module Fluent::Plugin
       %i[host index source sourcetype].each {|f| payload.delete f if payload[f].nil?}
 
       if @extra_fields
-        log.debug "#{self.class}: Have extra fields #{@extra_fields}" if rand(1000) == 0
         payload[:fields] = @extra_fields.map {|name, field| [name, record[field]]}.to_h
         payload[:fields].compact!
         # if a field is already in indexed fields, then remove it from the original event
